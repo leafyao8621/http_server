@@ -1,5 +1,5 @@
-#include "server/server.h"
-#include "util/errcode/errcode.h"
+#include <http_server/errcode.h>
+#include <http_server/server.h>
 
 #include <stdio.h>
 #include <signal.h>
