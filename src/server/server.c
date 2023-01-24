@@ -1,9 +1,18 @@
 #include "server.h"
 #include "../util/errcode/errcode.h"
 
+#include <containers/darray.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <threads.h>
+
+typedef char Char;
+
+DEF_DARRAY(Char)
+DEF_DARRAY_FUNCTIONS(Char)
+
+typedef DArrayChar String;
 
 int HTTPServer_initialize(HTTPServer *server, uint16_t port) {
     if (!server) {
@@ -52,10 +61,31 @@ struct ConnArgs {
 };
 
 int connection_handler(void *args) {
-    char buf[1001];
+    char raw_buf[1001];
+    String buf;
+    int ret = DArrayChar_initialize(&buf, 1001);
+    if (ret) {
+        return 0;
+    }
     struct ConnArgs argv = *(struct ConnArgs*)args;
-    recv(argv.sockfd, buf, 1000, 0);
-    puts(buf);
+    ssize_t sz = 0;
+    for (; (sz = recv(argv.sockfd, raw_buf, 1000, 0)) == 1000;) {
+        ret = DArrayChar_push_back_batch(&buf, raw_buf, 1000);
+        if (ret) {
+            return 0;
+        }
+    }
+    ret = DArrayChar_push_back_batch(&buf, raw_buf, sz);
+    if (ret) {
+        return 0;
+    }
+    char chr = 0;
+    ret = DArrayChar_push_back(&buf, &chr);
+    if (ret) {
+        return 0;
+    }
+    puts(buf.data);
+    DArrayChar_finalize(&buf);
     const char *msg =
         "HTTP/1.1 200 OK\n\nTEST MESSAGE";
     send(argv.sockfd, msg, 29, 0);
