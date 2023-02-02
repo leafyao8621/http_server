@@ -9,10 +9,11 @@ CFLAGS = -Wall -Wextra -Werror -pedantic -fPIC
 	$(CC) $(CFLAGS) -g -c $< -o $@
 
 $(LIB): $(OBJ)
-	$(CC) $(OBJ) -shared -o $(LIB)
+	$(CC) $(OBJ) -shared -o $(LIB) -lcontainers -lhttputil -ljson
 
 $(BIN): $(LIB)
-	$(CC) src/test.c -o $(BIN) -pthread -lcontainers -Llib -lhttpserver -Iinclude -Wl,-rpath,lib
+	@cp src/util/errcode/errcode.h include/http_server/
+	$(CC) src/test.c -o $(BIN) -pthread -Llib -lcontainers -lhttputil -ljson -lhttpserver -Iinclude -Wl,-rpath,lib
 
 .PHONY: clean install
 clean:

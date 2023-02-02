@@ -10,13 +10,13 @@ HTTPServer server;
 void sig_handler(int sig) {
     printf("Received signal %d\n", sig);
     int ret = HTTPServer_finalize(&server);
-    printf("retcode: %d\nmsg: %s\n", ret, errcode_lookup[ret]);
+    printf("retcode: %d\nmsg: %s\n", ret, http_server_errcode_lookup[ret]);
     exit(0);
 }
 
 int main(void) {
     int ret = HTTPServer_initialize(&server, 8000);
-    printf("retcode: %d\nmsg: %s\n", ret, errcode_lookup[ret]);
+    printf("retcode: %d\nmsg: %s\n", ret, http_server_errcode_lookup[ret]);
     signal(SIGABRT, sig_handler);
     signal(SIGFPE, sig_handler);
     signal(SIGILL, sig_handler);

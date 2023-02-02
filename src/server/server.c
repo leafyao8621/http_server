@@ -1,26 +1,21 @@
-#include "server.h"
-#include "../util/errcode/errcode.h"
-
-#include <containers/darray.h>
-
 #include <stdio.h>
 #include <string.h>
 #include <threads.h>
 
-typedef char Char;
+#include <containers/darray.h>
+#include <http_util/http_header.h>
+#include <http_util/errcode.h>
 
-DEF_DARRAY(Char)
-DEF_DARRAY_FUNCTIONS(Char)
-
-typedef DArrayChar String;
+#include "server.h"
+#include "../util/errcode/errcode.h"
 
 int HTTPServer_initialize(HTTPServer *server, uint16_t port) {
     if (!server) {
-        return ERR_NULL_PTR;
+        return HTTP_SERVER_ERR_NULL_PTR;
     }
     server->sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (server->sockfd < 0) {
-        return ERR_SOCKET_OPEN;
+        return HTTP_SERVER_ERR_SOCKET_OPEN;
     }
     if (
         setsockopt(
@@ -30,7 +25,7 @@ int HTTPServer_initialize(HTTPServer *server, uint16_t port) {
             &(int){1},
             sizeof(int)
         ) < 0) {
-        return ERR_SOCKET_SET_OPT;
+        return HTTP_SERVER_ERR_SOCKET_SET_OPT;
     }
     memset(&server->serv_addr, 0, sizeof(server->serv_addr));
     server->serv_addr.sin_family = AF_INET;
@@ -42,18 +37,18 @@ int HTTPServer_initialize(HTTPServer *server, uint16_t port) {
             (const struct sockaddr*)&server->serv_addr,
             sizeof(server->serv_addr)
         ) < 0) {
-        return ERR_SOCKET_BIND;
+        return HTTP_SERVER_ERR_SOCKET_BIND;
     }
     server->clilen = sizeof(server->cli_addr);
-    return ERR_OK;
+    return HTTP_SERVER_ERR_OK;
 }
 
 int HTTPServer_finalize(HTTPServer *server) {
     if (!server) {
-        return ERR_NULL_PTR;
+        return HTTP_SERVER_ERR_NULL_PTR;
     }
     close(server->sockfd);
-    return ERR_OK;
+    return HTTP_SERVER_ERR_OK;
 }
 
 struct ConnArgs {
@@ -85,6 +80,36 @@ int connection_handler(void *args) {
         return 0;
     }
     puts(buf.data);
+    char *iter = buf.data;
+    for (; *iter != '\n'; ++iter);
+    ++iter;
+    HTTPHeader header;
+    ret = HTTPHeader_initialize(&header);
+    if (ret) {
+        puts("abc");
+        return 0;
+    }
+    ret = HTTPHeader_parse(&header, &iter);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        return 0;
+    }
+    String out_buf;
+    ret = DArrayChar_initialize(&out_buf, 1000);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        HTTPHeader_finalize(&header);
+        return 0;
+    }
+    ret = HTTPHeader_serialize(&header, &out_buf);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        HTTPHeader_finalize(&header);
+        DArrayChar_finalize(&out_buf);
+    }
+    puts(out_buf.data);
+    DArrayChar_finalize(&out_buf);
+    HTTPHeader_finalize(&header);
     DArrayChar_finalize(&buf);
     const char *msg =
         "HTTP/1.1 200 OK\n\nTEST MESSAGE";
@@ -96,7 +121,7 @@ int connection_handler(void *args) {
 
 int HTTPServer_start(HTTPServer *server) {
     if (listen(server->sockfd, 5)) {
-        return ERR_SOCKET_LISTEN;
+        return HTTP_SERVER_ERR_SOCKET_LISTEN;
     }
     for (;;) {
         int client =
@@ -110,12 +135,12 @@ int HTTPServer_start(HTTPServer *server) {
         args.sockfd = client;
         int ret = thrd_create(&thread, connection_handler, &args);
         if (ret) {
-            return ERR_THREAD_CREATE;
+            return HTTP_SERVER_ERR_THREAD_CREATE;
         }
         ret = thrd_detach(thread);
         if (ret) {
-            return ERR_THREAD_DETACH;
+            return HTTP_SERVER_ERR_THREAD_DETACH;
         }
     }
-    return ERR_OK;
+    return HTTP_SERVER_ERR_OK;
 }
