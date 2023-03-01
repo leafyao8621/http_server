@@ -4,6 +4,7 @@
 
 #include <containers/darray.h>
 #include <http_util/http_header.h>
+#include <http_util/url.h>
 #include <http_util/errcode.h>
 
 #include "server.h"
@@ -81,15 +82,9 @@ int connection_handler(void *args) {
     }
     puts(buf.data);
     char *iter = buf.data;
-    for (; *iter != '\n'; ++iter);
-    ++iter;
-    HTTPHeader header;
-    ret = HTTPHeader_initialize(&header);
-    if (ret) {
-        puts("abc");
-        return 0;
-    }
-    ret = HTTPHeader_parse(&header, &iter);
+    for (; *iter != 0 && *iter != '/'; ++iter);
+    URL url;
+    ret = URL_initialize(&url);
     if (ret) {
         DArrayChar_finalize(&buf);
         return 0;
@@ -98,17 +93,52 @@ int connection_handler(void *args) {
     ret = DArrayChar_initialize(&out_buf, 1000);
     if (ret) {
         DArrayChar_finalize(&buf);
-        HTTPHeader_finalize(&header);
+        URL_finalize(&url);
+        return 0;
+    }
+    ret = URL_parse(&url, &iter);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        URL_finalize(&url);
+        DArrayChar_finalize(&out_buf);
+        return 0;
+    }
+    ret = URL_serialize(&url, &out_buf);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        URL_finalize(&url);
+        DArrayChar_finalize(&out_buf);
+        return 0;
+    }
+    DArrayChar_pop_back(&out_buf);
+    for (; *iter != '\n'; ++iter);
+    ++iter;
+    HTTPHeader header;
+    ret = HTTPHeader_initialize(&header);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        URL_finalize(&url);
+        DArrayChar_finalize(&out_buf);
+        return 0;
+    }
+    ret = HTTPHeader_parse(&header, &iter);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        URL_finalize(&url);
+        DArrayChar_finalize(&out_buf);
         return 0;
     }
     ret = HTTPHeader_serialize(&header, &out_buf);
     if (ret) {
         DArrayChar_finalize(&buf);
+        URL_finalize(&url);
         HTTPHeader_finalize(&header);
         DArrayChar_finalize(&out_buf);
+        return 0;
     }
     puts(out_buf.data);
     DArrayChar_finalize(&out_buf);
+    URL_finalize(&url);
     HTTPHeader_finalize(&header);
     DArrayChar_finalize(&buf);
     const char *msg =
