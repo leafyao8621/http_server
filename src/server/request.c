@@ -1,4 +1,46 @@
 #include "server.h"
+#include <stdio.h>
+const char *http_method_lookup[9] = {
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "DELETE",
+    "CONNECT",
+    "OPTIONS",
+    "TRACE",
+    "PATCH"
+};
+
+int HTTPMethod_parse(HTTPMethod *method, char **iter) {
+    String buf;
+    int ret = DArrayChar_initialize(&buf, 10);
+    if (ret) {
+        return 1;
+    }
+    for (; **iter && **iter != ' '; ++(*iter)) {
+        ret = DArrayChar_push_back(&buf, *iter);
+        if (ret) {
+            DArrayChar_finalize(&buf);
+            return 1;
+        }
+    }
+    char chr = 0;
+    ret = DArrayChar_push_back(&buf, &chr);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        return 1;
+    }
+    const char **lookup = http_method_lookup;
+    for (*method = 0; *method < 9; ++(*method), ++lookup) {
+        if (!strcmp(*lookup, buf.data)) {
+            DArrayChar_finalize(&buf);
+            return 0;
+        }
+    }
+    DArrayChar_finalize(&buf);
+    return 1;
+}
 
 int HTTPRequest_initialize(HTTPRequest *request) {
     int ret = URL_initialize(&request->url);
@@ -18,8 +60,12 @@ int HTTPRequest_initialize(HTTPRequest *request) {
 
 int HTTPRequest_parse(HTTPRequest *request, char *data) {
     char *iter = data;
-    for (; *iter != 0 && *iter != '/'; ++iter);
-    int ret = URL_parse(&request->url, &iter);
+    int ret = HTTPMethod_parse(&request->method, &iter);
+    if (ret) {
+        return 1;
+    }
+    for (; *iter && *iter != '/'; ++iter);
+    ret = URL_parse(&request->url, &iter);
     if (ret) {
         return 1;
     }
@@ -43,6 +89,14 @@ int HTTPRequest_finalize(HTTPRequest *request) {
 }
 
 int HTTPRequest_serialize(HTTPRequest *request, String *buf) {
+    char *method = (char*)http_method_lookup[request->method];
+    if (DArrayChar_push_back_batch(buf, method, strlen(method))) {
+        return 1;
+    }
+    char chr = '\n';
+    if (DArrayChar_push_back(buf, &chr)) {
+        return 1;
+    }
     if (URL_serialize(&request->url, buf)) {
         return 1;
     }
@@ -51,7 +105,6 @@ int HTTPRequest_serialize(HTTPRequest *request, String *buf) {
         return 1;
     }
     DArrayChar_pop_back(buf);
-    char chr = '\n';
     if (DArrayChar_push_back(buf, &chr)) {
         return 1;
     }
