@@ -1,5 +1,5 @@
 #include "server.h"
-#include <stdio.h>
+
 const char *http_method_lookup[9] = {
     "GET",
     "HEAD",
