@@ -56,4 +56,9 @@ int HTTPServer_initialize(HTTPServer *server, uint16_t port);
 int HTTPServer_start(HTTPServer *server);
 int HTTPServer_finalize(HTTPServer *server);
 
+int HTTPRequest_initialize(HTTPRequest *request);
+int HTTPRequest_parse(HTTPRequest *request, char *data);
+int HTTPRequest_finalize(HTTPRequest *request);
+int HTTPRequest_serialize(HTTPRequest *request, String *buf);
+
 #endif

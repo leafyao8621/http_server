@@ -79,117 +79,39 @@ int connection_handler(void *args) {
         return 0;
     }
     puts(buf.data);
-    char *iter = buf.data;
-    for (; *iter != 0 && *iter != '/'; ++iter);
-    URL url;
-    ret = URL_initialize(&url);
-    if (ret) {
-        DArrayChar_finalize(&buf);
-        return 0;
-    }
     String out_buf;
     ret = DArrayChar_initialize(&out_buf, 1000);
     if (ret) {
-        DArrayChar_finalize(&buf);
-        URL_finalize(&url);
         return 0;
     }
-    ret = URL_parse(&url, &iter);
+    HTTPRequest request;
+    ret = HTTPRequest_initialize(&request);
     if (ret) {
         DArrayChar_finalize(&buf);
-        URL_finalize(&url);
         DArrayChar_finalize(&out_buf);
         return 0;
     }
-    ret = URL_serialize(&url, &out_buf);
+    ret = HTTPRequest_parse(&request, buf.data);
     if (ret) {
         DArrayChar_finalize(&buf);
-        URL_finalize(&url);
         DArrayChar_finalize(&out_buf);
+        HTTPRequest_finalize(&request);
         return 0;
     }
-    DArrayChar_pop_back(&out_buf);
-    bool has_param = false;
-    URLParams params;
-    if (*iter == '?') {
-        has_param = true;
-        URLParams_initialize(&params);
-        ret = URLParams_parse(&params, &iter);
-        if (!ret) {
-            ret = URLParams_serialize(&params, &out_buf);
-            if (ret) {
-                DArrayChar_finalize(&buf);
-                URL_finalize(&url);
-                URLParams_finalize(&params);
-                DArrayChar_finalize(&out_buf);
-                return 0;
-            }
-            DArrayChar_pop_back(&out_buf);
-            chr = '\n';
-            ret = DArrayChar_push_back(&out_buf, &chr);
-            if (ret) {
-                DArrayChar_finalize(&buf);
-                URL_finalize(&url);
-                URLParams_finalize(&params);
-                DArrayChar_finalize(&out_buf);
-                return 0;
-            }
-            ret = HTTPHeader_serialize(&params, &out_buf);
-            if (ret) {
-                DArrayChar_finalize(&buf);
-                URL_finalize(&url);
-                URLParams_finalize(&params);
-                DArrayChar_finalize(&out_buf);
-                return 0;
-            }
-            DArrayChar_pop_back(&out_buf);
-        }
-    }
-    for (; *iter != '\n'; ++iter);
-    ++iter;
-    HTTPHeader header;
-    ret = HTTPHeader_initialize(&header);
+    ret = HTTPRequest_serialize(&request, &out_buf);
     if (ret) {
         DArrayChar_finalize(&buf);
-        URL_finalize(&url);
-        if (has_param) {
-            URLParams_finalize(&params);
-        }
         DArrayChar_finalize(&out_buf);
+        HTTPRequest_finalize(&request);
         return 0;
     }
-    ret = HTTPHeader_parse(&header, &iter);
-    if (ret) {
-        DArrayChar_finalize(&buf);
-        URL_finalize(&url);
-        if (has_param) {
-            URLParams_finalize(&params);
-        }
-        DArrayChar_finalize(&out_buf);
-        return 0;
-    }
-    ret = HTTPHeader_serialize(&header, &out_buf);
-    if (ret) {
-        DArrayChar_finalize(&buf);
-        URL_finalize(&url);
-        if (has_param) {
-            URLParams_finalize(&params);
-        }
-        HTTPHeader_finalize(&header);
-        DArrayChar_finalize(&out_buf);
-        return 0;
-    }
-    URL_finalize(&url);
-    if (has_param) {
-        URLParams_finalize(&params);
-    }
-    HTTPHeader_finalize(&header);
-    DArrayChar_finalize(&buf);
     const char *msg =
         "HTTP/1.1 200 OK\n\n";
     send(argv.sockfd, msg, 17, 0);
     send(argv.sockfd, out_buf.data, out_buf.size - 1, 0);
+    DArrayChar_finalize(&buf);
     DArrayChar_finalize(&out_buf);
+    HTTPRequest_finalize(&request);
     shutdown(argv.sockfd, SHUT_RDWR);
     close(argv.sockfd);
     return 0;
