@@ -118,7 +118,33 @@ int connection_handler(void *args) {
         URLParams_initialize(&params);
         ret = URLParams_parse(&params, &iter);
         if (!ret) {
+            ret = URLParams_serialize(&params, &out_buf);
+            if (ret) {
+                DArrayChar_finalize(&buf);
+                URL_finalize(&url);
+                URLParams_finalize(&params);
+                DArrayChar_finalize(&out_buf);
+                return 0;
+            }
+            DArrayChar_pop_back(&out_buf);
+            chr = '\n';
+            ret = DArrayChar_push_back(&out_buf, &chr);
+            if (ret) {
+                DArrayChar_finalize(&buf);
+                URL_finalize(&url);
+                URLParams_finalize(&params);
+                DArrayChar_finalize(&out_buf);
+                return 0;
+            }
             ret = HTTPHeader_serialize(&params, &out_buf);
+            if (ret) {
+                DArrayChar_finalize(&buf);
+                URL_finalize(&url);
+                URLParams_finalize(&params);
+                DArrayChar_finalize(&out_buf);
+                return 0;
+            }
+            DArrayChar_pop_back(&out_buf);
         }
     }
     for (; *iter != '\n'; ++iter);
