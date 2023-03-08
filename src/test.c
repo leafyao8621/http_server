@@ -1,9 +1,9 @@
-#include <http_server/errcode.h>
-#include <http_server/server.h>
-
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
+
+#include <http_server/errcode.h>
+#include <http_server/server.h>
 
 HTTPServer server;
 

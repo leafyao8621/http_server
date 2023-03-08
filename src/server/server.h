@@ -34,12 +34,22 @@ typedef struct HTTPRequest {
     } body;
 } HTTPRequest;
 
+typedef struct URLMethod {
+    URL url;
+    HTTPMethod method;
+} URLMethod;
+
 typedef int (*HTTPRequestHandler)(HTTPRequest*);
+
+DEF_HASHMAP(URLMethod, HTTPRequestHandler)
+
+typedef HashMapURLMethodHTTPRequestHandler Router;
 
 typedef struct HTTPServer {
     int sockfd;
     struct sockaddr_in serv_addr, cli_addr;
     socklen_t clilen;
+    Router router;
 } HTTPServer;
 
 int HTTPServer_initialize(HTTPServer *server, uint16_t port);
