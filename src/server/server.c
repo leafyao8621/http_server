@@ -3,8 +3,6 @@
 #include <threads.h>
 
 #include <containers/darray.h>
-#include <http_util/http_header.h>
-#include <http_util/url.h>
 #include <http_util/errcode.h>
 
 #include "server.h"
