@@ -22,11 +22,19 @@ typedef enum HTTPMethod {
     HTTP_METHOD_PATCH
 } HTTPMethod;
 
+typedef enum HTTPBodyType {
+    BODY_TYPE_NONE,
+    BODY_TYPE_TEXT,
+    BODY_TYPE_URL_ENCODED,
+    BODY_TYPE_JSON
+} HTTPBodyType;
+
 typedef struct HTTPRequest {
     HTTPMethod method;
     URL url;
     URLParams params;
     HTTPHeader header;
+    HTTPBodyType body_type;
     union {
         String text;
         URLParams url_encoded;
