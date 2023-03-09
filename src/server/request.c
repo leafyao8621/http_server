@@ -1,6 +1,7 @@
+#include <stdio.h>
 #include "server.h"
 
-#include <stdio.h>
+
 
 const char *http_method_lookup[9] = {
     "GET",
@@ -92,23 +93,21 @@ int HTTPRequest_parse(HTTPRequest *request, char *data) {
         DArrayChar_finalize(&buf);
         return 1;
     }
-    puts(buf.data);
     bool found = false;
-    ret = HashMapStringString_find(&request->header, &request->header.data[6].key, &found);
+    ret = HashMapStringString_find(&request->header, &buf, &found);
     if (ret) {
         DArrayChar_finalize(&buf);
         return 1;
     }
-    printf("%d xxsdsf\n", found);
     if (found) {
         String *temp;
-        ret = HashMapStringString_fetch(&request->header, &request->header.data[6].key, &temp);
+        ret = HashMapStringString_fetch(&request->header, &buf, &temp);
         if (ret) {
             DArrayChar_finalize(&buf);
             return 1;
         }
-        puts(temp->data);
         if (!strcmp(temp->data, "application/json")) {
+            ++iter;
             ret = JSONDocument_parse(&request->body.json, iter);
             if (ret) {
                 DArrayChar_finalize(&buf);
@@ -116,7 +115,12 @@ int HTTPRequest_parse(HTTPRequest *request, char *data) {
                 return 1;
             }
             request->body_type = BODY_TYPE_JSON;
-        } else if (!strcmp(temp->data, "application/x-www-form-urlencoded")) {
+        } else if (
+            !strcmp(
+                temp->data,
+                "application/x-www-form-urlencoded"
+            )) {
+            ++iter;
             ret = URLParams_initialize(&request->body.url_encoded);
             if (ret) {
                 DArrayChar_finalize(&buf);
@@ -234,7 +238,7 @@ int HTTPRequest_serialize(HTTPRequest *request, String *buf) {
         if (DArrayChar_push_back(buf, &chr)) {
             return 1;
         }
-        if (HTTPHeader_serialize(&request->params, buf)) {
+        if (HTTPHeader_serialize(&request->body.url_encoded, buf)) {
             return 1;
         }
         break;
