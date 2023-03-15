@@ -10,8 +10,6 @@
 
 DEF_HASHMAP_FUNCTIONS(URLMethod, HTTPRequestHandler)
 
-
-
 int HTTPServer_initialize(HTTPServer *server, uint16_t port) {
     if (!server) {
         return HTTP_SERVER_ERR_NULL_PTR;

@@ -1,7 +1,4 @@
-#include <stdio.h>
 #include "server.h"
-
-
 
 const char *http_method_lookup[9] = {
     "GET",
