@@ -107,13 +107,51 @@ int connection_handler(void *args) {
         HTTPRequest_finalize(&request);
         return 0;
     }
-    const char *msg =
-        "HTTP/1.1 200 OK\n\n";
-    send(argv.sockfd, msg, 17, 0);
-    send(argv.sockfd, out_buf.data, out_buf.size - 1, 0);
+    HTTPResponse response;
+    ret = HTTPResponse_initialize(&response, HTTP_RESPONSE_200, BODY_TYPE_TEXT);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        DArrayChar_finalize(&out_buf);
+        HTTPRequest_finalize(&request);
+        return 0;
+    }
+    ret =
+        DArrayChar_push_back_batch(
+            &response.body.text,
+            out_buf.data,
+            out_buf.size
+        );
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        DArrayChar_finalize(&out_buf);
+        HTTPRequest_finalize(&request);
+        HTTPResponse_finalize(&response);
+        return 0;
+    }
+    String res_buf;
+    ret = DArrayChar_initialize(&res_buf, 1000);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        DArrayChar_finalize(&out_buf);
+        HTTPRequest_finalize(&request);
+        HTTPResponse_finalize(&response);
+        return 0;
+    }
+    ret = HTTPResponse_serialize(&response, &res_buf);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        DArrayChar_finalize(&out_buf);
+        HTTPRequest_finalize(&request);
+        HTTPResponse_finalize(&response);
+        DArrayChar_finalize(&res_buf);
+        return 0;
+    }
+    send(argv.sockfd, res_buf.data, res_buf.size - 1, 0);
     DArrayChar_finalize(&buf);
     DArrayChar_finalize(&out_buf);
     HTTPRequest_finalize(&request);
+    HTTPResponse_finalize(&response);
+    DArrayChar_finalize(&res_buf);
     shutdown(argv.sockfd, SHUT_RDWR);
     close(argv.sockfd);
     return 0;

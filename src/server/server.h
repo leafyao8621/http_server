@@ -145,7 +145,10 @@ int HTTPRequest_parse(HTTPRequest *request, char *data);
 int HTTPRequest_finalize(HTTPRequest *request);
 int HTTPRequest_serialize(HTTPRequest *request, String *buf);
 
-int HTTPResponse_initialize(HTTPResponse *response, HTTPBodyType body_type);
+int HTTPResponse_initialize(
+    HTTPResponse *response,
+    HTTPResponseCode response_code,
+    HTTPBodyType body_type);
 int HTTPResponse_finalize(HTTPResponse *response);
 int HTTPResponse_serialize(HTTPResponse *response, String *buf);
 

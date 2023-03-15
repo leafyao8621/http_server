@@ -1,6 +1,6 @@
 #include "server.h"
 
-const char *http_response_code_lookup[63] = {
+char *http_response_code_lookup[63] = {
     "100 Continue",
     "101 Switching Protocols",
     "102 Processing",
@@ -66,7 +66,10 @@ const char *http_response_code_lookup[63] = {
     "511 Network Authentication Required"
 };
 
-int HTTPResponse_initialize(HTTPResponse *response, HTTPBodyType body_type) {
+int HTTPResponse_initialize(
+    HTTPResponse *response,
+    HTTPResponseCode response_code,
+    HTTPBodyType body_type) {
     if (!response) {
         return 1;
     }
@@ -74,22 +77,124 @@ int HTTPResponse_initialize(HTTPResponse *response, HTTPBodyType body_type) {
     if (ret) {
         return 1;
     }
+    response->response_code = response_code;
     response->body_type = body_type;
+    String key, value;
+    ret = DArrayChar_initialize(&key, 20);
+    if (ret) {
+        return 1;
+    }
+    ret = DArrayChar_initialize(&value, 50);
+    if (ret) {
+        return 1;
+    }
     switch (body_type) {
     case BODY_TYPE_NONE:
         break;
     case BODY_TYPE_TEXT:
-        ret = DArrayChar_initialize(&response->body, 100);
+        ret = DArrayChar_initialize(&response->body.text, 100);
         break;
     case BODY_TYPE_URL_ENCODED:
+        DArrayChar_push_back_batch(&key, "Content-Type", 13);
+        DArrayChar_push_back_batch(
+            &value,
+            "application/x-www-form-urlencoded",
+            34
+        );
         ret = URLParams_initialize(&response->body.url_encoded);
         break;
     case BODY_TYPE_JSON:
-        ret = JSONNodePtr_initialize(&response->body.json);
+        DArrayChar_push_back_batch(&key, "Content-Type", 13);
+        DArrayChar_push_back_batch(&value, "application/json", 17);
+        ret = JSONNodePtr_initialize(&response->body.json.root);
         break;
     }
     if (ret) {
         return 1;
+    }
+    if (key.size || value.size) {
+        String *tgt;
+        ret = HashMapStringString_fetch(&response->header, &key, &tgt);
+        if (ret) {
+            DArrayChar_finalize(&key);
+            DArrayChar_finalize(&value);
+            return 1;
+        }
+        *tgt = value;
+    } else {
+        DArrayChar_finalize(&key);
+        DArrayChar_finalize(&value);
+    }
+    return 0;
+}
+
+int HTTPResponse_finalize(HTTPResponse *response) {
+    if (!response) {
+        return 1;
+    }
+    HTTPHeader_finalize(&response->header);
+    switch (response->body_type) {
+    case BODY_TYPE_NONE:
+        break;
+    case BODY_TYPE_TEXT:
+        DArrayChar_finalize(&response->body.text);
+        break;
+    case BODY_TYPE_URL_ENCODED:
+        URLParams_finalize(&response->body.url_encoded);
+        break;
+    case BODY_TYPE_JSON:
+        JSONDocument_finalize(&response->body.json);
+        break;
+    }
+    return 0;
+}
+
+int HTTPResponse_serialize(HTTPResponse *response, String *buf) {
+    if (!response || !buf) {
+        return 1;
+    }
+    int ret = DArrayChar_push_back_batch(buf, "HTTP/1.1 ", 9);
+    if (ret) {
+        return 1;
+    }
+    ret =\
+        DArrayChar_push_back_batch(
+            buf,
+            http_response_code_lookup[response->response_code],
+            strlen(http_response_code_lookup[response->response_code])
+        );
+    if (ret) {
+        return 1;
+    }
+    char chr = '\n';
+    ret = DArrayChar_push_back(buf, &chr);
+    if (ret) {
+        return 1;
+    }
+    ret = HTTPHeader_serialize(&response->header, buf);
+    if (ret) {
+        return 1;
+    }
+    DArrayChar_pop_back(buf);
+    switch (response->body_type) {
+    case BODY_TYPE_NONE:
+        break;
+    case BODY_TYPE_TEXT:
+        ret =
+            DArrayChar_push_back_batch(
+                buf,
+                response->body.text.data,
+                response->body.text.size
+            );
+        break;
+    case BODY_TYPE_URL_ENCODED:
+        ret =
+            URLParams_serialize(&response->body.url_encoded, buf);
+        break;
+    case BODY_TYPE_JSON:
+        ret =
+            JSONDocument_serialize(&response->body.json, buf, true);
+        break;
     }
     return 0;
 }
