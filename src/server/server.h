@@ -32,7 +32,7 @@ int HTTPServer_finalize(HTTPServer *server);
 
 int HTTPServer_set_route(
     HTTPServer *server,
-    URL url,
+    char *route,
     HTTPMethod method,
     HTTPRequestHandler handler);
 
