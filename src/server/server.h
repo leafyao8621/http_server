@@ -30,4 +30,10 @@ int HTTPServer_initialize(HTTPServer *server, uint16_t port);
 int HTTPServer_start(HTTPServer *server);
 int HTTPServer_finalize(HTTPServer *server);
 
+int HTTPServer_set_route(
+    HTTPServer *server,
+    URL url,
+    HTTPMethod method,
+    HTTPRequestHandler handler);
+
 #endif
