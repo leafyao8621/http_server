@@ -1,6 +1,6 @@
 #include "errcode.h"
 
-const char *http_server_errcode_lookup[8] = {
+const char *http_server_errcode_lookup[10] = {
     "HTTP_SERVER_ERR_OK",
     "HTTP_SERVER_ERR_SOCKET_OPEN",
     "HTTP_SERVER_ERR_SOCKET_BIND",
@@ -9,4 +9,6 @@ const char *http_server_errcode_lookup[8] = {
     "HTTP_SERVER_ERR_THREAD_CREATE",
     "HTTP_SERVER_ERR_THREAD_DETACH",
     "HTTP_SERVER_ERR_SOCKET_SET_OPT",
+    "HTTP_SERVER_ERR_SET_ROUTE",
+    "HTTP_SERVER_ERR_ROUTER_INITIALIZE"
 };

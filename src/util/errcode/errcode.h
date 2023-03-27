@@ -9,7 +9,9 @@
 #define HTTP_SERVER_ERR_THREAD_CREATE 5
 #define HTTP_SERVER_ERR_THREAD_DETACH 6
 #define HTTP_SERVER_ERR_SOCKET_SET_OPT 7
+#define HTTP_SERVER_ERR_SET_ROUTE 8
+#define HTTP_SERVER_ERR_ROUTER_INITIALIZE 9
 
-extern const char *http_server_errcode_lookup[8];
+extern const char *http_server_errcode_lookup[10];
 
 #endif

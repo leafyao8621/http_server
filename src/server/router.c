@@ -1,7 +1,10 @@
+#include <stdio.h>
+
 #include <containers/eq.h>
 #include <containers/hash.h>
 
 #include "router.h"
+#include "../util/errcode/errcode.h"
 
 DEF_HASHMAP_FUNCTIONS(URLMethod, HTTPRequestHandler)
 
@@ -45,4 +48,33 @@ int Router_finalize(Router *router) {
     }
     HashMapURLMethodHTTPRequestHandler_finalize(router);
     return 0;
+}
+
+int HTTPServer_set_route(
+    HTTPServer *server,
+    char *route,
+    HTTPMethod method,
+    HTTPRequestHandler handler) {
+    URLMethod url_method;
+    int ret = URL_initialize(&url_method.url);
+    if (ret) {
+        return HTTP_SERVER_ERR_SET_ROUTE;
+    }
+    ret = URL_parse(&url_method.url, &route);
+    if (ret) {
+        return HTTP_SERVER_ERR_SET_ROUTE;
+    }
+    url_method.method = method;
+    HTTPRequestHandler *tgt;
+    ret =
+        HashMapURLMethodHTTPRequestHandler_fetch(
+            &server->router,
+            &url_method,
+            &tgt
+        );
+    if (ret) {
+        return HTTP_SERVER_ERR_SET_ROUTE;
+    }
+    *tgt = handler;
+    return HTTP_SERVER_ERR_OK;
 }

@@ -6,6 +6,7 @@
 #include <http_util/errcode.h>
 
 #include "server.h"
+#include "router.h"
 #include "../util/errcode/errcode.h"
 
 int HTTPServer_initialize(HTTPServer *server, uint16_t port) {
@@ -39,6 +40,10 @@ int HTTPServer_initialize(HTTPServer *server, uint16_t port) {
         return HTTP_SERVER_ERR_SOCKET_BIND;
     }
     server->clilen = sizeof(server->cli_addr);
+    int ret = Router_initialize(&server->router);
+    if (ret) {
+        return HTTP_SERVER_ERR_ROUTER_INITIALIZE;
+    }
     return HTTP_SERVER_ERR_OK;
 }
 
@@ -47,11 +52,13 @@ int HTTPServer_finalize(HTTPServer *server) {
         return HTTP_SERVER_ERR_NULL_PTR;
     }
     close(server->sockfd);
+    Router_finalize(&server->router);
     return HTTP_SERVER_ERR_OK;
 }
 
 struct ConnArgs {
     int sockfd;
+    HTTPServer *server;
 };
 
 int connection_handler(void *args) {
@@ -79,49 +86,21 @@ int connection_handler(void *args) {
         return 0;
     }
     puts(buf.data);
-    String out_buf;
-    ret = DArrayChar_initialize(&out_buf, 1000);
-    if (ret) {
-        return 0;
-    }
     HTTPRequest request;
     ret = HTTPRequest_initialize(&request);
     if (ret) {
         DArrayChar_finalize(&buf);
-        DArrayChar_finalize(&out_buf);
         return 0;
     }
     ret = HTTPRequest_parse(&request, buf.data);
     if (ret) {
         DArrayChar_finalize(&buf);
-        DArrayChar_finalize(&out_buf);
-        HTTPRequest_finalize(&request);
-        return 0;
-    }
-    ret = HTTPRequest_serialize(&request, &out_buf);
-    if (ret) {
-        DArrayChar_finalize(&buf);
-        DArrayChar_finalize(&out_buf);
         HTTPRequest_finalize(&request);
         return 0;
     }
     HTTPResponse response;
-    ret = HTTPResponse_initialize(&response, HTTP_RESPONSE_200, BODY_TYPE_TEXT);
     if (ret) {
         DArrayChar_finalize(&buf);
-        DArrayChar_finalize(&out_buf);
-        HTTPRequest_finalize(&request);
-        return 0;
-    }
-    ret =
-        DArrayChar_push_back_batch(
-            &response.body.text,
-            out_buf.data,
-            out_buf.size
-        );
-    if (ret) {
-        DArrayChar_finalize(&buf);
-        DArrayChar_finalize(&out_buf);
         HTTPRequest_finalize(&request);
         HTTPResponse_finalize(&response);
         return 0;
@@ -130,15 +109,38 @@ int connection_handler(void *args) {
     ret = DArrayChar_initialize(&res_buf, 1000);
     if (ret) {
         DArrayChar_finalize(&buf);
-        DArrayChar_finalize(&out_buf);
         HTTPRequest_finalize(&request);
         HTTPResponse_finalize(&response);
+        return 0;
+    }
+    URLMethod url_method;
+    url_method.url = request.url;
+    url_method.method = request.method;
+    HTTPRequestHandler *tgt;
+    ret =
+        HashMapURLMethodHTTPRequestHandler_fetch(
+            &argv.server->router,
+            &url_method,
+            &tgt
+        );
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        HTTPRequest_finalize(&request);
+        HTTPResponse_finalize(&response);
+        DArrayChar_finalize(&res_buf);
+        return 0;
+    }
+    ret = (*tgt)(&request, &response);
+    if (ret) {
+        DArrayChar_finalize(&buf);
+        HTTPRequest_finalize(&request);
+        HTTPResponse_finalize(&response);
+        DArrayChar_finalize(&res_buf);
         return 0;
     }
     ret = HTTPResponse_serialize(&response, &res_buf);
     if (ret) {
         DArrayChar_finalize(&buf);
-        DArrayChar_finalize(&out_buf);
         HTTPRequest_finalize(&request);
         HTTPResponse_finalize(&response);
         DArrayChar_finalize(&res_buf);
@@ -146,7 +148,6 @@ int connection_handler(void *args) {
     }
     send(argv.sockfd, res_buf.data, res_buf.size - 1, 0);
     DArrayChar_finalize(&buf);
-    DArrayChar_finalize(&out_buf);
     HTTPRequest_finalize(&request);
     HTTPResponse_finalize(&response);
     DArrayChar_finalize(&res_buf);
@@ -169,6 +170,7 @@ int HTTPServer_start(HTTPServer *server) {
         thrd_t thread;
         struct ConnArgs args;
         args.sockfd = client;
+        args.server = server;
         int ret = thrd_create(&thread, connection_handler, &args);
         if (ret) {
             return HTTP_SERVER_ERR_THREAD_CREATE;
