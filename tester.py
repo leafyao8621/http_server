@@ -9,4 +9,4 @@ if __name__ == "__main__":
             res = requests.post("http://localhost:8000/add", json=payload)
             print(res.json())
             res.close()
-            time.sleep(0.4)
+            time.sleep(0.1)
