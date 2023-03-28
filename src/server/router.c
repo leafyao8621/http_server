@@ -18,6 +18,16 @@ bool eq_url_method(URLMethod *a, URLMethod *b) {
     if (a->url.breakdown.size != b->url.breakdown.size) {
         return false;
     }
+    String *iter_a = a->url.breakdown.data;
+    String *iter_b = b->url.breakdown.data;
+    for (size_t i = 0; i < a->url.breakdown.size; ++i, ++iter_a, ++iter_b) {
+        if (iter_a->size == 1 && iter_a->data[0] == '*') {
+            continue;
+        }
+        if (!containers_eq_dstr(iter_a, iter_b)) {
+            return false;
+        }
+    }
     return true;
 }
 
