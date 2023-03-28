@@ -10,3 +10,9 @@ if __name__ == "__main__":
             print(res.json())
             res.close()
             time.sleep(0.1)
+    for i in ('abcda', "abcba", "xxqeds"):
+        print(i)
+        res = requests.get(f"http://localhost:8000/anagram/{i}")
+        print(res.json())
+        res.close()
+        time.sleep(0.1)
