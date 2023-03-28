@@ -169,7 +169,7 @@ bool is_anagram(String *str) {
     for (
         size_t i = 0;
         i < (str->size - 1) >> 1;
-        ++i, ++iter_front, --iter_back){
+        ++i, ++iter_front, --iter_back) {
         if (*iter_front != *iter_back) {
             return false;
         }
