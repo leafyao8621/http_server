@@ -116,13 +116,34 @@ int connection_handler(void *args) {
     URLMethod url_method;
     url_method.url = request.url;
     url_method.method = request.method;
-    HTTPRequestHandler *tgt;
+    bool found;
     ret =
-        HashMapURLMethodHTTPRequestHandler_fetch(
+        HashMapURLMethodHTTPRequestHandler_find(
             &argv.server->router,
             &url_method,
-            &tgt
+            &found
         );
+    HTTPRequestHandler *tgt;
+    if (!found) {
+        HashMapURLMethodHTTPRequestHandlerNode *iter =
+            argv.server->router.data;
+        for (size_t i = 0; i < argv.server->router.capacity; ++i, ++iter) {
+            if (iter->in_use) {
+                if (argv.server->router.eq(&iter->key, &url_method)) {
+                    tgt = &iter->value;
+                    found = true;
+                    break;
+                }
+            }
+        }
+    } else {
+        ret =
+            HashMapURLMethodHTTPRequestHandler_fetch(
+                &argv.server->router,
+                &url_method,
+                &tgt
+            );
+    }
     if (ret) {
         DArrayChar_finalize(&buf);
         HTTPRequest_finalize(&request);
@@ -130,7 +151,22 @@ int connection_handler(void *args) {
         DArrayChar_finalize(&res_buf);
         return 0;
     }
-    ret = (*tgt)(&request, &response);
+    if (found) {
+        ret = (*tgt)(&request, &response);
+    } else {
+        ret =
+            HTTPResponse_initialize(
+                &response,
+                HTTP_RESPONSE_404,
+                BODY_TYPE_TEXT
+            );
+        ret =
+            DArrayChar_push_back_batch(
+                &response.body.text,
+                "Invalid Request",
+                16
+            );
+    }
     if (ret) {
         DArrayChar_finalize(&buf);
         HTTPRequest_finalize(&request);

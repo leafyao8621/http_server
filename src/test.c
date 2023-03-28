@@ -162,6 +162,74 @@ int add_post_handler(HTTPRequest *request, HTTPResponse *response) {
     return 0;
 }
 
+bool is_anagram(String *str) {
+    char *iter_front, *iter_back;
+    iter_front = str->data;
+    iter_back = str->data + str->size - 2;
+    for (
+        size_t i = 0;
+        i < (str->size - 1) >> 1;
+        ++i, ++iter_front, --iter_back){
+        if (*iter_front != *iter_back) {
+            return false;
+        }
+    }
+    return true;
+}
+
+int anagram_get_handler(HTTPRequest *request, HTTPResponse *response) {
+    bool res = is_anagram(&request->url.breakdown.data[1]);
+    int ret =
+        HTTPResponse_initialize(
+            response,
+            HTTP_RESPONSE_200,
+            BODY_TYPE_JSON
+        );
+    if (ret) {
+        return 1;
+    }
+    response->body.json.root->is_null = false;
+    response->body.json.root->type = OBJECT;
+    ret =
+        HashMapStringJSONNodePtr_initialize(
+            &response->body.json.root->data.object,
+            2,
+            containers_eq_dstr,
+            containers_hash_dstr
+        );
+    if (ret) {
+        return 1;
+    }
+    String key;
+    ret = DArrayChar_initialize(&key, 10);
+    if (ret) {
+        return 1;
+    }
+    JSONNodePtr *tgt;
+    ret = DArrayChar_push_back_batch(&key, "result", 7);
+    if (ret) {
+        return 1;
+    }
+    ret =
+        HashMapStringJSONNodePtr_fetch(
+            &response->body.json.root->data.object,
+            &key,
+            &tgt
+        );
+    if (ret) {
+        DArrayChar_finalize(&key);
+        return 1;
+    }
+    ret = JSONNodePtr_initialize(tgt);
+    if (ret) {
+        return 1;
+    }
+    (*tgt)->is_null = false;
+    (*tgt)->type = BOOLEAN;
+    (*tgt)->data.boolean = res;
+    return 0;
+}
+
 void sig_handler(int sig) {
     printf("Received signal %d\n", sig);
     int ret = HTTPServer_finalize(&server);
@@ -178,6 +246,14 @@ int main(void) {
             "/add ",
             HTTP_METHOD_POST,
             add_post_handler
+        );
+    printf("retcode: %d\nmsg: %s\n", ret, http_server_errcode_lookup[ret]);
+    ret =
+        HTTPServer_set_route(
+            &server,
+            "/anagram/* ",
+            HTTP_METHOD_GET,
+            anagram_get_handler
         );
     printf("retcode: %d\nmsg: %s\n", ret, http_server_errcode_lookup[ret]);
     signal(SIGABRT, sig_handler);
